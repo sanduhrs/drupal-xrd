@@ -1,0 +1,150 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Extensible Resource Descriptor (XRD)
+ *
+ * @author
+ * Stefan Auditor <stefan.auditor@erdfisch.de>
+ *
+ * @see
+ * http://docs.oasis-open.org/xri/xrd/v1.0/xrd-1.0.html
+ */
+
+/**
+ * Implement HOOK_menu().
+ */
+function xrd_menu() {
+  $items = array();
+  return $items;
+}
+
+/**
+ * Menu callback
+ */
+function xrd_page($context = NULL) {
+  $output = xrd_document($context);
+  if ($output) {
+    //drupal_set_header('Content-type: application/xrd+xml');
+    drupal_set_header('Content-type: text/plain');
+    print $output;
+    die();
+  }
+  drupal_not_found();
+}
+
+/**
+ * Generates an XRD document
+ */
+function xrd_document($identifier = NULL) {
+  $xrd_raw = xrd_raw();
+  drupal_alter('xrd_data', $xrd_raw, $identifier);
+
+  if (!$count = count($xrd_raw)) {
+    return FALSE;
+  }
+
+  $xml = new XmlWriter();
+  // Configuration
+  $xml->openMemory();
+  $xml->setIndent(TRUE);
+  $xml->setIndentString('  ');
+  // Document
+  $xml->startDocument('1.0', 'UTF-8');
+
+  if ($count >= 2) {
+    $xml->startElement('XRDS');
+  }
+
+  xrd_add_elements($xml, $xrd_raw);
+
+  if ($count >= 2) {
+    $xml->endElement();
+  }
+
+  $xml->endDocument();
+  return $xml->flush();
+}
+
+/**
+ * Recursivly generate XML from raw XRD data
+ */
+function xrd_add_elements(&$xml, $xrd_raw) {
+  foreach($xrd_raw as $key => $value) {
+    if ($key === 'element') {
+      $xml->startElement($value['type']);
+      if (is_array($value['attributes'])) {
+        foreach ($value['attributes'] as $item => $content) {
+          $xml->writeAttribute($item, $content);
+        }
+      }
+      if ($value['value']) {
+        $xml->text($value['value']);
+      }
+    }
+    else {
+      xrd_add_elements(&$xml, $value);
+      $xml->endElement();
+    }
+  }
+}
+
+/**
+ * XRD raw data
+ */
+function xrd_raw() {
+  $xrd = array(
+    'default' => array(
+      'element' => array(
+        'type' => 'XRD',
+        'value' => NULL,
+        'attributes' => array(
+          //'xml:id' => url(NULL, array('absolute' => TRUE)),
+          'xmlns' => 'http://docs.oasis-open.org/ns/xri/xrd-1.0',
+          'xmlns:xsi' => 'http://www.w3.org/2001/XMLSchema-instance',
+        ),
+      ),
+    ),
+  );
+  return $xrd;
+}
+
+/**
+ * Example implementation of HOOK_xrd_data_alter().
+ */
+function xrd_xrd_data_alter($data) {
+/*
+  $data += array(
+    array(
+      'element' => array(
+        'type' => 'Expires',
+        'value' => date('c', mktime(5, 0, 0, 11, 19, 1978)),
+        'attributes' => array(),
+      ),
+    ),
+    array(
+      'element' => array(
+        'type' => 'Subject',
+        'value' => url(NULL, array('absolute' => TRUE)),
+        'attributes' => array(),
+      ),
+    ),
+    array(
+      'element' => array(
+        'type' => 'Alias',
+        'value' => NULL,
+        'attributes' => array(),
+      ),
+    ),
+    array(
+      'element' => array(
+        'type' => 'Property',
+        'value' => '',
+        'attributes' => array(),
+      ),
+    ),
+  );
+*/
+}
+

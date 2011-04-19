@@ -1,0 +1,4 @@
+; $Id$
+name = "XRD"
+description = "Extensible Resource Descriptor (XRD)"
+core = 6.x
