@@ -1,0 +1,92 @@
+<?php
+
+spl_autoload_register('xrd_autoloader');
+
+function xrd_autoloader($class) {
+  $classes = array('XRD', 'XRDS');
+  if (in_array($class, $classes)) {
+    chdir(DRUPAL_ROOT . '/sites/all/libraries/php-xrd/src');
+    include $class . '.php';
+    chdir(DRUPAL_ROOT);
+  }
+
+  $xrd_classes = array('XRD_Link', 'XRD_Property', 'XRD_Title');
+  if (in_array($class, $xrd_classes)) {
+    chdir(DRUPAL_ROOT . '/sites/all/libraries/php-xrd/src');
+    include str_replace('_', '/', $class) . '.php';
+    chdir(DRUPAL_ROOT);
+  }
+
+  $xrds_classes = array('XRDS_LocalID', 'XRDS_Service', 'XRDS_URI', 'XRDS_XRD');
+  if (in_array($class, $xrds_classes)) {
+    chdir(DRUPAL_ROOT . '/sites/all/libraries/php-xrd/src');
+    include str_replace('_', '/', $class) . '.php';
+    chdir(DRUPAL_ROOT);
+  }
+}
+
+function xrd_document($type) {
+  $xrd = new stdClass();
+  $xrd = xrd_prepare_document($xrd);
+
+  drupal_alter('xrd_' . $type, $xrd);
+  $xrd = xrd_prepare_document($xrd);
+
+  $xrd_links = $xrd_link_titles = $xrd_link_properties = NULL;
+  foreach ($xrd->links as $link) {
+    extract($link);
+
+    $xrd_link_titles = array();
+    if (!empty($title)) {
+      $xrd_link_titles[] = new XRD_Title($title);
+
+      $languages = language_list('enabled');
+      foreach ($languages as $language) {
+        $lang = array_pop($language);
+        $xrd_link_titles[] = new XRD_Title(
+          t($title, array(), array('langcode' => $lang->language)),
+          $lang->language
+        );
+      }
+    }
+
+    $xrd_link_properties = array();
+    if (isset($properties) && count($properties)) {
+      foreach ($properties as $property) {
+        $xrd_link_properties[] = new XRD_Property(
+          isset($property['type']) ? (string) $property['type'] : '',
+          isset($property['value']) ? (string) $property['value'] : ''
+        );
+      }
+    }
+
+    $xrd_link = new XRD_Link(
+      isset($rel) ? $rel : NULL,
+      isset($type) ? $type : NULL,
+      isset($href) ? $href : NULL,
+      isset($template) ? $template : NULL,
+      isset($xrd_link_titles) ? $xrd_link_titles : array(),
+      isset($xrd_link_properties) ? $xrd_link_properties : array()
+    );
+    $xrd_links[] = $xrd_link;
+  }
+
+
+  $xrd_properties = NULL;
+  foreach ($xrd->properties as $property) {
+    $xrd_property = new XRD_Property(
+      isset($property['name']) ? $property['name'] : '',
+      isset($property['value']) ? $property['value'] : ''
+    );
+    $xrd_properties[] = $xrd_property;
+  }
+
+  $xrd = new XRD($xrd_properties, $xrd_links);
+  return $xrd;
+}
+
+function xrd_prepare_document($xrd) {
+  $xrd->links = isset($xrd->links) ? (array) $xrd->links : array();
+  $xrd->properties = isset($xrd->properties) ? (array) $xrd->properties : array();
+  return $xrd;
+}

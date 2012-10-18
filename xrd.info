@@ -1,0 +1,3 @@
+name = XRD
+description = Extensible Resource Descriptor
+core = 7.x
